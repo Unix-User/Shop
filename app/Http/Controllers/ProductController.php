@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
+
 
 class ProductController extends Controller
 {
@@ -14,20 +17,10 @@ class ProductController extends Controller
      */
     public function index()
     {
-        $products = Product::latest()->paginate(5);
-
-        return view('products.index', compact('products'))
-            ->with('i', (request()->input('page', 1) - 1) * 5);
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function create()
-    {
-        return view('products.create');
+        $products = Product::where(['user_id' => Auth::user()->id])->get();
+        return response()->json([
+            'tasks'    => $products,
+        ], 200);
     }
 
     /**
@@ -38,37 +31,19 @@ class ProductController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => 'required',
-            'detail' => 'required',
+        $this->validate($request, [
+            'name'        => 'required',
+            'description' => 'required',
         ]);
-
-        Product::create($request->all());
-
-        return redirect()->route('products.index')
-            ->with('success', 'Product created successfully.');
-    }
-
-    /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\Product  $product
-     * @return \Illuminate\Http\Response
-     */
-    public function show(Product $product)
-    {
-        return view('products.show', compact('product'));
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  \App\Models\Product  $product
-     * @return \Illuminate\Http\Response
-     */
-    public function edit(Product $product)
-    {
-        return view('products.edit', compact('product'));
+        $product = Product::create([
+            'name'        => request('name'),
+            'description' => request('description'),
+            'user_id'     => Auth::user()->id
+        ]);
+        return response()->json([
+            'product'    => $product,
+            'message' => 'Success'
+        ], 200);
     }
 
     /**
@@ -80,15 +55,16 @@ class ProductController extends Controller
      */
     public function update(Request $request, Product $product)
     {
-        $request->validate([
-            'name' => 'required',
-            'detail' => 'required',
+        $this->validate($request, [
+            'name'        => 'required|max:255',
+            'description' => 'required',
         ]);
-
-        $product->update($request->all());
-
-        return redirect()->route('products.index')
-            ->with('success', 'Product updated successfully');
+        $product->name = request('name');
+        $product->description = request('description');
+        $product->save();
+        return response()->json([
+            'message' => 'Product updated successfully!'
+        ], 200);
     }
 
     /**
@@ -100,8 +76,8 @@ class ProductController extends Controller
     public function destroy(Product $product)
     {
         $product->delete();
-
-        return redirect()->route('products.index')
-            ->with('success', 'Product deleted successfully');
+        return response()->json([
+            'message' => 'Product deleted successfully!'
+        ], 200);
     }
 }
